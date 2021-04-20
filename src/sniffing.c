@@ -195,6 +195,12 @@ void sniffing_start(sniffing* sniffing_struct)
     /* Get tcp offset from ip length */
     int tcp_offset = 0;
 
+    /* pointer header of tcp */
+    uint32_t *ptr_tcp = NULL;
+
+    /* For saving tcp frame */
+    struct tcphdr *tcph = NULL;
+
     /* Pointer to log file description*/
     if (IS_LOG_ON(sniffing_struct)) {
         log_file_open(sniffing_struct);
@@ -238,9 +244,9 @@ void sniffing_start(sniffing* sniffing_struct)
             switch (sniffing_struct->protocol[protocol_idx]) {
             case IP:
                 ptr_ip = (uint32_t*)(buffer + ip_offset);
-                if (ptr_ip == NULL) {
+                if (IS_NULL(ptr_ip)) {
                     perror("Pointer ip fault\n");
-                    exit(1);
+                    exit(-1);
                 }
 
                 for (int ip_idx = ip_offset; ip_idx < ip_length + ip_offset; ip_idx++) {
@@ -255,13 +261,41 @@ void sniffing_start(sniffing* sniffing_struct)
                 }
                 break;
             case TCP:
-                
+                /* Verfity protocol */
+                if (protocol != TCP) {
+                    break;
+                }
+
+                /* Get address of tcp header over ip length */
+                tcp_offset = ip_length;
+
+                tcph = (struct tcphdr*)(buffer + tcp_offset);
+
+                ptr_tcp = (uint32_t*)(buffer + tcp_offset);
+
+                tcp_length = recv_data_size - tcph->doff * 4 - tcp_offset;
+
+                if (IS_NULL(ptr_tcp)) {
+                    perror("Pointer tcp fault\n");
+                    exit(-1);
+                }
+
+                for (int tcp_idx = tcp_offset; tcp_idx < tcp_length + tcp_offset; tcp_idx++) {
+                    printdata(sniffing_struct, buffer[tcp_idx]);
+                    
+                    /* Add newline to 32 bits */
+                    if ((tcp_idx - tcp_offset) > 0 && ((tcp_idx - tcp_offset + 1) % 12) == 0) {
+                            printdata(sniffing_struct, '\n');
+                    }
+
+                    fflush(sniffing_struct->ptr_log_file);
+                }
                 break;
             default:
                 break;
             }
         }
-        sleep(0.5);
+        sleep(0.1);
     }
 
 }

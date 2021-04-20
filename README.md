@@ -5,7 +5,7 @@
 
 ## Support:
 - IP (Current)
-- TCP (Next)
+- TCP (Current)
 - UDP (Next)
 - ICMP (Next)
 

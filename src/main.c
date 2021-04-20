@@ -2,7 +2,7 @@
 
 int main()
 {
-    uint8_t protocol = IP;
+    uint8_t protocol = TCP;
 
     /* Configure listen information */
     sniffing *ptr_sniffing = create_new_sniffing();
