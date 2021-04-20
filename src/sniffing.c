@@ -1,12 +1,35 @@
 #include "sniffing.h"
 
-static int stop_flag;
+static volatile int stop_flag;
 
 static inline void exit_program_handler(int signum)
 {
     stop_flag = 1;
-    exit(1);
 }
+
+/* print data to outupt */
+static inline void printdata(sniffing* sniffing_struct, uint8_t byte_data) 
+{
+    /**
+     *  If logging is on, write log. Otherwise, write stdout.
+     */
+    if (IS_LOG_ON(sniffing_struct)) {
+        if (byte_data == '\n') {
+            fprintf(sniffing_struct->ptr_log_file, "\n");
+        } else {
+            fprintf(sniffing_struct->ptr_log_file, "%x ", byte_data);
+        }
+        fflush(sniffing_struct->ptr_log_file);
+    } else {
+        if (byte_data == '\n') {
+            fprintf(stdout, "\n");
+        } else {
+            fprintf(stdout, "%x ", byte_data);
+        }
+        fflush(stdout);
+    }
+}
+
 
 /**
  *  Open file
@@ -96,9 +119,10 @@ sniffing* create_new_sniffing(void)
     }
 
     /* Initialize */
-    new_sniffing->protocol = -1;
+    new_sniffing->protocol = NULL;
     new_sniffing->socket = -1;
     new_sniffing->counter = 0;
+    new_sniffing->protocol_size = 0;
     new_sniffing->interface = NULL;
     new_sniffing->log_path = NULL;
     new_sniffing->ptr_log_file = NULL;
@@ -114,7 +138,7 @@ sniffing* create_new_sniffing(void)
     return new_sniffing;
 }
 
-int8_t setting_interface_name(sniffing* sniffing_struct, const char *interface_name) 
+int8_t set_interface_name(sniffing* sniffing_struct, const char *interface_name) 
 {
     int8_t status = 0;
 
@@ -154,6 +178,21 @@ void sniffing_start(sniffing* sniffing_struct)
     
     /* iphdr pointer */
     struct iphdr *iph = NULL;
+    uint32_t *ptr_ip = NULL;
+
+    /* ip length */
+    unsigned short ip_length = 0;
+
+    int ip_offset = sizeof(struct ethhdr);
+
+    /* Record protocol */
+    int protocol = 0;
+
+    /* tcp length */
+    unsigned short tcp_length = 0;
+
+    /* Get tcp offset from ip length */
+    int tcp_offset = 0;
 
     /* Pointer to log file description*/
     if (IS_LOG_ON(sniffing_struct)) {
@@ -169,8 +208,6 @@ void sniffing_start(sniffing* sniffing_struct)
     stop_flag = 0;
 
     while(1) {
-        
-        sleep(0.1);
 
         /* When interrupt happing, exit sniffing*/
         if (stop_flag) {
@@ -184,10 +221,46 @@ void sniffing_start(sniffing* sniffing_struct)
             continue;
         }
 
-        /* Obtain ip package */
-        iph = (struct iphdr *)(buffer  + sizeof(struct ethhdr));
+        /* If list of protocol is empty */
+        if (IS_NULL(sniffing_struct->protocol)) {
+            continue;
+        }
 
-        printf("%d\n", (unsigned int)iph->protocol);
+        /* Catch ip package */
+        iph = (struct iphdr *)(buffer + ip_offset);
+        ip_length = iph->ihl * 4;
+
+        /* Get protocol from IP */
+        protocol = iph->protocol;
+
+        for(int protocol_idx = 0; protocol_idx < sniffing_struct->protocol_size; protocol_idx++) {
+            switch (sniffing_struct->protocol[protocol_idx]) {
+            case IP:
+                ptr_ip = (uint32_t*)(buffer + ip_offset);
+                if (ptr_ip == NULL) {
+                    perror("Pointer ip fault\n");
+                    exit(1);
+                }
+
+                for (int ip_idx = ip_offset; ip_idx < ip_length + ip_offset; ip_idx++) {
+                    printdata(sniffing_struct, buffer[ip_idx]);
+                    
+                    /* Add newline to 32 bits */
+                    if ((ip_idx - ip_offset) > 0 && ((ip_idx - ip_offset + 1) % 4) == 0) {
+                        printdata(sniffing_struct, '\n');
+                    }
+
+                    fflush(sniffing_struct->ptr_log_file);
+                }
+                break;
+            case TCP:
+                
+                break;
+            default:
+                break;
+            }
+        }
+        sleep(0.5);
     }
 
 }
@@ -197,4 +270,10 @@ void sniffing_stop(sniffing* sniffing_struct)
     if (IS_LOG_ON(sniffing_struct)) {
         fclose(sniffing_struct->ptr_log_file);
     }
+}
+
+void set_protocol(sniffing *sniffing_struct, uint8_t *protocol_list, int32_t protocol_size)
+{
+    sniffing_struct->protocol = protocol_list;
+    sniffing_struct->protocol_size = protocol_size;
 }

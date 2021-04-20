@@ -28,17 +28,20 @@
 #define BIND_INTERFACE_OFF(SNIFFING) do{SNIFFING->bind_interface_flag = 0;}while(0)
 
 
-
-/* Protocol */
+/**
+ *  Follow IANA define protocol
+ */
 enum portocol_type {
-    TCP,
-    UDP,
-    ICMP
+    IP = 0,
+    ICMP = 1,
+    TCP = 6,
+    UDP = 17,
 };
 
 /* Sniffing class */
 struct sniffing {
-    uint8_t protocol;
+    uint8_t *protocol;
+    int32_t protocol_size;
     uint64_t counter;
     FILE *ptr_log_file;
     int socket;
@@ -52,7 +55,10 @@ struct sniffing {
 sniffing* create_new_sniffing(void);
 
 /* Bind interface */
-int8_t setting_interface_name(sniffing*, const char*);
+int8_t set_interface_name(sniffing*, const char*);
+
+/* Configure object of protocol*/
+void set_protocol(sniffing*, uint8_t*, int32_t);
 
 /* Create log path */
 int8_t create_log_path(sniffing*, const char*);
