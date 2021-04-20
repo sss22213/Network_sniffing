@@ -12,19 +12,20 @@ static inline void printdata(sniffing* sniffing_struct, uint8_t byte_data)
 {
     /**
      *  If logging is on, write log. Otherwise, write stdout.
+     *  File writed is not support new line.
      */
     if (IS_LOG_ON(sniffing_struct)) {
         if (byte_data == '\n') {
-            fprintf(sniffing_struct->ptr_log_file, "\n");
+            return;
         } else {
-            fprintf(sniffing_struct->ptr_log_file, "%x ", byte_data);
+            fprintf(sniffing_struct->ptr_log_file, "%c ", byte_data);
         }
         fflush(sniffing_struct->ptr_log_file);
     } else {
         if (byte_data == '\n') {
             fprintf(stdout, "\n");
         } else {
-            fprintf(stdout, "%x ", byte_data);
+            fprintf(stdout, "%c ", byte_data);
         }
         fflush(stdout);
     }
@@ -39,16 +40,16 @@ static inline void printdata(sniffing* sniffing_struct, uint8_t byte_data)
 static inline void log_file_open(sniffing* sniffing_struct)
 {
     /* Check log file */
-    if(IS_NULL(sniffing_struct->log_path) == 0) {
+    if(IS_NULL(sniffing_struct->log_path)) {
         perror("File is not exist\n");
-        exit(1);
+        exit(-1);
     }
 
     /* Open log file */
     sniffing_struct->ptr_log_file = fopen(sniffing_struct->log_path, "w");
-    if (sniffing_struct->ptr_log_file) {
+    if (!sniffing_struct->ptr_log_file) {
         perror("Open file fail\n");
-        exit(1);
+        exit(-1);
     }
 }
 
@@ -69,7 +70,7 @@ static inline void bind_interface(sniffing* sniffing_struct)
     /* Check socket is not pointer to NULL */
     if (sniffing_struct->socket < 0) {
         perror("Because socket is empty, binding interface fail.\n");
-        exit(1);
+        exit(-1);
     }
 
     /* Configure interface name */
@@ -80,7 +81,7 @@ static inline void bind_interface(sniffing* sniffing_struct)
     /* Find index of interface */
     if (ioctl(sniffing_struct->socket, SIOCGIFINDEX, &ifr) == -1) {
         perror("ioctl");
-        exit(1);
+        exit(-1);
     }
 
     /* Bind interface to socket*/
@@ -90,7 +91,7 @@ static inline void bind_interface(sniffing* sniffing_struct)
     addr.sll_protocol = htons(ETH_P_ALL);
     if (bind(sniffing_struct->socket, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         perror("bind");
-        exit(1);
+        exit(-1);
     }
 
 }
@@ -246,7 +247,7 @@ void sniffing_start(sniffing* sniffing_struct)
                     printdata(sniffing_struct, buffer[ip_idx]);
                     
                     /* Add newline to 32 bits */
-                    if ((ip_idx - ip_offset) > 0 && ((ip_idx - ip_offset + 1) % 4) == 0) {
+                    if ((ip_idx - ip_offset) > 0 && ((ip_idx - ip_offset + 1) % 12) == 0) {
                         printdata(sniffing_struct, '\n');
                     }
 
