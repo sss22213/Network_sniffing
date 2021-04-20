@@ -167,6 +167,9 @@ int8_t create_log_path(sniffing* sniffing_struct, const char* log_file_path)
 
 void sniffing_start(sniffing* sniffing_struct) 
 {  
+    /* Count of package */
+    uint64_t package_count = 0;
+
     /* Initialize buffer */
     uint8_t buffer[65535] = {0};
 
@@ -295,6 +298,15 @@ void sniffing_start(sniffing* sniffing_struct)
                 break;
             }
         }
+
+        /* If logging on, display count of package */
+        if (IS_LOG_ON(sniffing_struct)) {
+            fprintf(stdout, "Catch %ld package \b\r", package_count);
+            fflush(stdout);
+        }
+
+        package_count++;
+
         sleep(0.1);
     }
 
